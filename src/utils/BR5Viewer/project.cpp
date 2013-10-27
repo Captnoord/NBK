@@ -114,14 +114,18 @@ int InitGL(GLvoid)
 	}
 	br5_1.scaleToMaxY(0.05f);*/
 
-	if (!br5_1.loadFromFile("beast_ms3d\\beast.br5"))
+	//if (!br5_1.loadFromFile("beast_ms3d\\beast.br5"))
+	if (!br5_1.loadFromFile("D:\\dev\\DungeonKeeperGit\\data\\resources\\models\\animated\\creatures\\beast.br5"))
+	
 	{
+		MessageBox(NULL, "unable to load resource file", "error", MB_OK);
 		return FALSE;
 	}
+
 	br5_1.setAnimSpeed(0.002f);
 	br5_1.setInterpolate(true);
 	br5_1.setConnected(true);
-	br5_1.scaleToMaxY(0.2f);	
+	br5_1.scaleToMaxY(0.2f);
 
 	int Walk = br5_1.registerAction(0, 5);
 	int Emerge = br5_1.registerAction(6, 17);
@@ -495,14 +499,14 @@ int WINAPI WinMain(	HINSTANCE	hInstance,
 		}
 		else										
 		{
-			
+	
 			if ((active && !DrawGLScene()) || keys[VK_ESCAPE])	
 			{
 				done=TRUE;							
 			}
 			else									
 			{
-				SwapBuffers(hDC);					
+				SwapBuffers(hDC);
 			}
 
 			if (keys[VK_F1])						

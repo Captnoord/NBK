@@ -12,7 +12,6 @@ using namespace std;
 /*
 	Converts MS3D to BR5 model for simpler in-game usage. 
 */
-
 int main(int argc, char **argv)
 {
 	if (argc<2)
@@ -33,10 +32,6 @@ int main(int argc, char **argv)
 	if (animated)
 	{
 		numFrames = atoi(argv[2]);
-	}
-
-	if (animated)
-	{
 		model.numFrames = numFrames;
 	}
 

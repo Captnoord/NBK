@@ -55,7 +55,8 @@ QuaternionMult(const Quat1_T& q1, const Quat2_T& q2)
 
     typedef detail::SumOp<cross_type, value_type> sum_op;
 
-    enum {
+    enum quant
+	{
         W = order_type::W,
         X = order_type::X,
         Y = order_type::Y,

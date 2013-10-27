@@ -3,12 +3,10 @@
 
 using namespace rendering;
 using namespace std;
-using namespace geometry;
 
 namespace loaders
 {
 	CBR5Model::CBR5Model(): 
-		vbo(NULL),
 		fileName(""), 
 		vertexCount(0), 
 		framesCount(0), 
@@ -16,19 +14,18 @@ namespace loaders
 		startFrame(0),
 		endFrame(0),
 		texture(0),
-		actionsCount(0),
-		textureCoordinates(NULL),
-		vertexCoordinates(NULL),
-		vertexCoordinatesAnim(NULL),
-		normalCoordinates(NULL),
-		normalCoordinatesAnim(NULL),
-		animNextFrame(0.0f),
-		animSpeed(1.0f),
+		m_textureCoordinates(NULL),
+		m_vertexCoordinates(NULL),
+		m_vertexCoordinatesAnim(NULL),
+		m_animSpeed(1.0f),
+		m_animNextFrame(0.0f),
+		//normalCoordinates(NULL),
 		interpolate(false),
 		update(true),
+		copy(false),
 		connected(false),
-		copy(false)
-		//normalCoordinates(NULL)
+		actionsCount(0),
+		vbo(NULL)
 	{
 	}
 
@@ -52,34 +49,22 @@ namespace loaders
 			actions[ac] = br5Model.actions[ac];
 		}
 
-		textureCoordinates = br5Model.textureCoordinates;
+		m_textureCoordinates = br5Model.m_textureCoordinates;
 		//vertexCoordinates = br5Model.vertexCoordinates;
 		
-		vertexCoordinates = new float[vertexCount*3];
-		memcpy(vertexCoordinates,br5Model.vertexCoordinates,sizeof(float)*vertexCount*3);
+		m_vertexCoordinates = new float[vertexCount*3];
+		memcpy(m_vertexCoordinates,br5Model.m_vertexCoordinates,sizeof(float)*vertexCount*3);
 
-		if (br5Model.framesCount == 1)
-		{
-			normalCoordinates = new float[vertexCount*3];
-			memcpy(normalCoordinates,br5Model.normalCoordinates,sizeof(float)*vertexCount*3);
-		}
-		else
-		{
-			normalCoordinates = br5Model.normalCoordinatesAnim[0];
-		}		
-
-		vertexCoordinatesAnim = br5Model.vertexCoordinatesAnim;
-		normalCoordinatesAnim = br5Model.normalCoordinatesAnim;
-		animNextFrame = br5Model.animNextFrame;
-		animSpeed = br5Model.animSpeed;
+		m_vertexCoordinatesAnim = br5Model.m_vertexCoordinatesAnim;
+		m_animNextFrame = br5Model.m_animNextFrame;
+		m_animSpeed = br5Model.m_animSpeed;
 		interpolate = br5Model.interpolate;
 		update = br5Model.update;
 		connected = br5Model.connected;
 
 		vbo = new CVBO(framesCount==1?CVBO::BT_STATIC_DRAW:CVBO::BT_STREAM_DRAW,false);
-		vbo->setVertexData(vertexCount,3,sizeof(GLfloat),vertexCoordinates,CVBO::DT_FLOAT);
-		vbo->setNormalData(vertexCount,3,sizeof(GLfloat),normalCoordinates,CVBO::DT_FLOAT);
-		vbo->setTextureData(CVBO::TU_UNIT0,texture,vertexCount,2,sizeof(GLfloat),textureCoordinates,CVBO::DT_FLOAT);
+		vbo->setVertexData(vertexCount,3,sizeof(GLfloat),m_vertexCoordinates,CVBO::DT_FLOAT);
+		vbo->setTextureData(CVBO::TU_UNIT0,texture,vertexCount,2,sizeof(GLfloat),m_textureCoordinates,CVBO::DT_FLOAT);
 		vbo->setEnumMode(CVBO::EM_TRIANGLES);
 
 		copy = true;
@@ -88,31 +73,20 @@ namespace loaders
 	CBR5Model::~CBR5Model()
 	{
 		delete vbo;
-		delete [] vertexCoordinates;
-
-		if (framesCount==1)
-		{
-			delete [] normalCoordinates;
-		}
+		delete [] m_vertexCoordinates;
 
 		if (!copy)
 		{
-			delete [] textureCoordinates;		
+			delete [] m_textureCoordinates;		
 
 			if (framesCount>1)
 			{
 				for (unsigned int i=0; i<framesCount; i++)
 				{
-					delete [] vertexCoordinatesAnim[i];
+					delete [] m_vertexCoordinatesAnim[i];
 				}
 
-				for (unsigned int i=0; i<framesCount; i++)
-				{
-					delete [] normalCoordinatesAnim[i];
-				}
-
-				delete [] vertexCoordinatesAnim;
-				delete [] normalCoordinatesAnim;				
+				delete [] m_vertexCoordinatesAnim;
 			}
 		}
 	}
@@ -128,16 +102,20 @@ namespace loaders
 			return false;
 		}
 
-		long fileSize = getFileSize(br5);
+		size_t fileSize = getFileSize(br5);
 
 		byte *data = new byte[fileSize];
 		byte *tmp = data;
 
 		// read the full model data
-		size_t read = fread(data,sizeof(byte),fileSize,br5);
+		size_t read = fread(data, fileSize, 1, br5);
+		read = read * fileSize;
 
 		if (read!=fileSize)
 		{
+			delete [] tmp;
+			fprintf(stderr, "Can't read %s BR5 model\n", fileName.c_str());
+			fclose(br5);
 			return false;
 		}
 
@@ -148,6 +126,7 @@ namespace loaders
 
 		if (mark[0]!='B' || mark[1]!='R' || mark[2]!='5')
 		{
+			delete [] tmp;
 			// file is not a valid br5 model
 			fclose(br5);
 			return false;
@@ -161,27 +140,23 @@ namespace loaders
 		vertexCount = *(unsigned int*)data;
 		data+=4;
 
-		textureCoordinates = new float[vertexCount*2];
+		m_textureCoordinates = new float[vertexCount*2];
 
 		// read texture coordinates
-		memcpy(textureCoordinates,data,sizeof(float)*vertexCount*2);
+		memcpy(m_textureCoordinates,data,sizeof(float)*vertexCount*2);
 		data+=sizeof(float)*vertexCount*2;
 
 		// read number of frames
 		framesCount = *(unsigned int*)data;
 		data+=4;
 
-		if (framesCount==1)
+		if (framesCount<=1)
 		{
 			// non animated version
 
 			// read vertices
-			vertexCoordinates = new float[vertexCount*3];
-			memcpy(vertexCoordinates,data,sizeof(float)*vertexCount*3);
-			data+=sizeof(float)*vertexCount*3;
-
-			normalCoordinates = new float[vertexCount*3];
-			memcpy(normalCoordinates,data,sizeof(float)*vertexCount*3);
+			m_vertexCoordinates = new float[vertexCount*3];
+			memcpy(m_vertexCoordinates,data,sizeof(float)*vertexCount*3);
 			data+=sizeof(float)*vertexCount*3;
 		}
 		else
@@ -192,26 +167,18 @@ namespace loaders
 			data+=sizeof(float)*vertexCount*3;*/
 
 			// read other anims
-			vertexCoordinatesAnim = new float*[framesCount];
-			normalCoordinatesAnim = new float*[framesCount];
+			m_vertexCoordinatesAnim = new float*[framesCount];
 
 			for (unsigned int i=0; i<framesCount; i++)
 			{
-				vertexCoordinatesAnim[i] = new float[vertexCount*3];
-				memcpy(vertexCoordinatesAnim[i],data,sizeof(float)*vertexCount*3);
-				data+=sizeof(float)*vertexCount*3;
-
-				normalCoordinatesAnim[i] = new float[vertexCount*3];
-				memcpy(normalCoordinatesAnim[i],data,sizeof(float)*vertexCount*3);
+				m_vertexCoordinatesAnim[i] = new float[vertexCount*3];
+				memcpy(m_vertexCoordinatesAnim[i],data,sizeof(float)*vertexCount*3);
 				data+=sizeof(float)*vertexCount*3;
 			}
 
-			vertexCoordinates = new float[vertexCount*3];
-			//normalCoordinates = new float[vertexCount*3];
+			m_vertexCoordinates = new float[vertexCount*3];
 
-			memcpy(vertexCoordinates,vertexCoordinatesAnim[0],sizeof(float)*vertexCount*3);
-			//memcpy(normalCoordinates,normalCoordinatesAnim[0],sizeof(float)*vertexCount*3);
-			normalCoordinates = normalCoordinatesAnim[0];
+			memcpy(m_vertexCoordinates,m_vertexCoordinatesAnim[0],sizeof(float)*vertexCount*3);
 		}
 
 		fclose(br5);
@@ -222,32 +189,54 @@ namespace loaders
 		startFrame = 0;
 		endFrame = framesCount-1;
 
-		/* ***************** 2. load the texture ***************** */
-		if (textureName[0]!='0')
-		{
-			CTextureLoader::buildTexture(textureName,texture,true);
-		}
 
 		/* ***************** 3. setup the VBO ***************** */
 
 		vbo = new CVBO(framesCount==1?CVBO::BT_STATIC_DRAW:CVBO::BT_STREAM_DRAW,false);
-		vbo->setVertexData(vertexCount,3,sizeof(GLfloat),vertexCoordinates,CVBO::DT_FLOAT);
-		vbo->setNormalData(vertexCount,3,sizeof(GLfloat),normalCoordinates,CVBO::DT_FLOAT);
-		if (texture!=0)
-		{
-			vbo->setTextureData(CVBO::TU_UNIT0,texture,vertexCount,2,sizeof(GLfloat),textureCoordinates,CVBO::DT_FLOAT);
-		}
+		vbo->setVertexData(vertexCount,3,sizeof(GLfloat),m_vertexCoordinates,CVBO::DT_FLOAT);
 		vbo->setEnumMode(CVBO::EM_TRIANGLES);
+
+		setupTexture();
 
 		// calculate the bounding box
 		boundingBox.reset();
 		for (unsigned int v=0; v<vertexCount*3; v+=3)
 		{
-			boundingBox.update(vertexCoordinates+v);
+			boundingBox.update(m_vertexCoordinates+v);
 		}
 		boundingBox.calculateExtents();
 
 		return true;
+	}
+
+	bool CBR5Model::loadFromMD3(std::string fileName)
+	{
+		return true;
+	}
+
+	char *CBR5Model::getTextureName()
+	{
+		return textureName;
+	}
+
+	void CBR5Model::setTextureName(std::string textureName)
+	{
+		strcpy(this->textureName,textureName.c_str());
+
+		setupTexture();
+	}
+
+	void CBR5Model::setupTexture()
+	{
+		if (textureName[0]!='0')
+		{
+			CTextureLoader::buildTexture(textureName,texture,true);
+		}
+
+		if (texture!=0)
+		{
+			vbo->setTextureData(CVBO::TU_UNIT0,texture,vertexCount,2,sizeof(GLfloat),m_textureCoordinates,CVBO::DT_FLOAT);
+		}
 	}
 
 	long CBR5Model::getFileSize(FILE *file)
@@ -260,30 +249,20 @@ namespace loaders
 
 	void CBR5Model::setAnimSpeed(float animSpeed)
 	{
-		this->animSpeed = animSpeed;
+		this->m_animSpeed = animSpeed;
 	}
 
-	void CBR5Model::setTexture(unsigned int texture)
-	{
-		this->texture = texture;
-
-		if (texture!=0 && vbo)
-		{
-			vbo->setTextureOnly(CVBO::TU_UNIT0,this->texture);
-		}
-	}
-
-	void CBR5Model::draw()
+	void CBR5Model::draw(GLfloat deltaTime)
 	{
 		if (framesCount>1)
 		{
 			if(update)
 			{
-				animNextFrame+=animSpeed;
+				m_animNextFrame+=m_animSpeed*deltaTime;
 
-				if (animNextFrame>=1.0f)
+				if (m_animNextFrame>=1.0f)
 				{
-					animNextFrame=1.0;
+					m_animNextFrame=1.0;
 				}
 
 				if (interpolate)
@@ -299,19 +278,19 @@ namespace loaders
 
 							if (connected && nextFrameIndex == endFrame)
 							{
-								nextFrameIndex = 0;
+								nextFrameIndex = startFrame;
 							}
 
-							vertexCoordinates[v+0] = vertexCoordinatesAnim[nextFrameIndex][v+0]*animNextFrame+vertexCoordinatesAnim[currentFrame][v+0]*(1.0f-animNextFrame);
-							vertexCoordinates[v+1] = vertexCoordinatesAnim[nextFrameIndex][v+1]*animNextFrame+vertexCoordinatesAnim[currentFrame][v+1]*(1.0f-animNextFrame);
-							vertexCoordinates[v+2] = vertexCoordinatesAnim[nextFrameIndex][v+2]*animNextFrame+vertexCoordinatesAnim[currentFrame][v+2]*(1.0f-animNextFrame);
+							m_vertexCoordinates[v+0] = m_vertexCoordinatesAnim[nextFrameIndex][v+0]*m_animNextFrame+m_vertexCoordinatesAnim[currentFrame][v+0]*(1.0f-m_animNextFrame);
+							m_vertexCoordinates[v+1] = m_vertexCoordinatesAnim[nextFrameIndex][v+1]*m_animNextFrame+m_vertexCoordinatesAnim[currentFrame][v+1]*(1.0f-m_animNextFrame);
+							m_vertexCoordinates[v+2] = m_vertexCoordinatesAnim[nextFrameIndex][v+2]*m_animNextFrame+m_vertexCoordinatesAnim[currentFrame][v+2]*(1.0f-m_animNextFrame);
 						}
 					}
 				}
 
-				if (animNextFrame>=1.0f)
+				if (m_animNextFrame>=1.0f)
 				{
-					animNextFrame = 0.0f;
+					m_animNextFrame = 0.0f;
 
 					currentFrame++;
 
@@ -322,12 +301,10 @@ namespace loaders
 
 					if (!interpolate)
 					{
-						memcpy(vertexCoordinates,vertexCoordinatesAnim[currentFrame],sizeof(GLfloat)*vertexCount*3);
+						memcpy(m_vertexCoordinates,m_vertexCoordinatesAnim[currentFrame],sizeof(GLfloat)*vertexCount*3);
 					}
-				}	
+				}		
 			}
-
-			normalCoordinates = normalCoordinatesAnim[currentFrame];
 		}
 
 		vbo->draw();
@@ -356,7 +333,7 @@ namespace loaders
 
 	void CBR5Model::doAction(int actionID)
 	{
-		animNextFrame = 0;
+		m_animNextFrame = 0;
 
 		pair<int,int> framePair = actions[actionID];
 
@@ -372,10 +349,10 @@ namespace loaders
 		boundingBox.reset();
 		for (unsigned int v=0; v<vertexCount*3; v+=3)
 		{
-			vertexCoordinates[v+0]*=dx;
-			vertexCoordinates[v+1]*=dx;
-			vertexCoordinates[v+2]*=dx;
-			boundingBox.update(vertexCoordinates+v);
+			m_vertexCoordinates[v+0]*=dx;
+			m_vertexCoordinates[v+1]*=dx;
+			m_vertexCoordinates[v+2]*=dx;
+			boundingBox.update(m_vertexCoordinates+v);
 		}
 		boundingBox.calculateExtents();
 
@@ -386,21 +363,41 @@ namespace loaders
 			{
 				for (unsigned int v=0; v<vertexCount*3; v+=3)
 				{
-					vertexCoordinatesAnim[i][v+0]*=dx;
-					vertexCoordinatesAnim[i][v+1]*=dx;
-					vertexCoordinatesAnim[i][v+2]*=dx;
+					m_vertexCoordinatesAnim[i][v+0]*=dx;
+					m_vertexCoordinatesAnim[i][v+1]*=dx;
+					m_vertexCoordinatesAnim[i][v+2]*=dx;
 				}
 			}
 		}
 		else
 		{
 			// we need to reupload the modified vertices
-			vbo->setVertexData(vertexCount,3,sizeof(GLfloat),vertexCoordinates,CVBO::DT_FLOAT);
+			vbo->setVertexData(vertexCount,3,sizeof(GLfloat),m_vertexCoordinates,CVBO::DT_FLOAT);
 		}
 	}
 
-	sBoundingBox *CBR5Model::getBoundingBox()
+	geometry::sBoundingBox *CBR5Model::getBoundingBox()
 	{
 		return &boundingBox;
+	}
+
+	CVBO *CBR5Model::getVBO()
+	{
+		return vbo;
+	}
+
+	unsigned int CBR5Model::getVertexCount()
+	{
+		return vertexCount;
+	}
+
+	float *CBR5Model::getVertexCoordinates()
+	{
+		return m_vertexCoordinates;
+	}
+
+	float CBR5Model::getAnimSpeed()
+	{
+		return m_animSpeed;
 	}
 };

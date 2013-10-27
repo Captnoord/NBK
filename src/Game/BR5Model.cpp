@@ -14,11 +14,11 @@ namespace loaders
 		startFrame(0),
 		endFrame(0),
 		texture(0),
-		textureCoordinates(NULL),
-		vertexCoordinates(NULL),
-		vertexCoordinatesAnim(NULL),
-		animSpeed(1.0f),
-		animNextFrame(0.0f),
+		m_textureCoordinates(NULL),
+		m_vertexCoordinates(NULL),
+		m_vertexCoordinatesAnim(NULL),
+		m_animSpeed(1.0f),
+		m_animNextFrame(0.0f),
 		//normalCoordinates(NULL),
 		interpolate(false),
 		update(true),
@@ -49,22 +49,22 @@ namespace loaders
 			actions[ac] = br5Model.actions[ac];
 		}
 
-		textureCoordinates = br5Model.textureCoordinates;
+		m_textureCoordinates = br5Model.m_textureCoordinates;
 		//vertexCoordinates = br5Model.vertexCoordinates;
 		
-		vertexCoordinates = new float[vertexCount*3];
-		memcpy(vertexCoordinates,br5Model.vertexCoordinates,sizeof(float)*vertexCount*3);
+		m_vertexCoordinates = new float[vertexCount*3];
+		memcpy(m_vertexCoordinates,br5Model.m_vertexCoordinates,sizeof(float)*vertexCount*3);
 
-		vertexCoordinatesAnim = br5Model.vertexCoordinatesAnim;
-		animNextFrame = br5Model.animNextFrame;
-		animSpeed = br5Model.animSpeed;
+		m_vertexCoordinatesAnim = br5Model.m_vertexCoordinatesAnim;
+		m_animNextFrame = br5Model.m_animNextFrame;
+		m_animSpeed = br5Model.m_animSpeed;
 		interpolate = br5Model.interpolate;
 		update = br5Model.update;
 		connected = br5Model.connected;
 
 		vbo = new CVBO(framesCount==1?CVBO::BT_STATIC_DRAW:CVBO::BT_STREAM_DRAW,false);
-		vbo->setVertexData(vertexCount,3,sizeof(GLfloat),vertexCoordinates,CVBO::DT_FLOAT);
-		vbo->setTextureData(CVBO::TU_UNIT0,texture,vertexCount,2,sizeof(GLfloat),textureCoordinates,CVBO::DT_FLOAT);
+		vbo->setVertexData(vertexCount,3,sizeof(GLfloat),m_vertexCoordinates,CVBO::DT_FLOAT);
+		vbo->setTextureData(CVBO::TU_UNIT0,texture,vertexCount,2,sizeof(GLfloat),m_textureCoordinates,CVBO::DT_FLOAT);
 		vbo->setEnumMode(CVBO::EM_TRIANGLES);
 
 		copy = true;
@@ -73,20 +73,20 @@ namespace loaders
 	CBR5Model::~CBR5Model()
 	{
 		delete vbo;
-		delete [] vertexCoordinates;
+		delete [] m_vertexCoordinates;
 
 		if (!copy)
 		{
-			delete [] textureCoordinates;		
+			delete [] m_textureCoordinates;		
 
 			if (framesCount>1)
 			{
 				for (unsigned int i=0; i<framesCount; i++)
 				{
-					delete [] vertexCoordinatesAnim[i];
+					delete [] m_vertexCoordinatesAnim[i];
 				}
 
-				delete [] vertexCoordinatesAnim;
+				delete [] m_vertexCoordinatesAnim;
 			}
 		}
 	}
@@ -113,7 +113,9 @@ namespace loaders
 
 		if (read!=fileSize)
 		{
+			delete [] tmp;
 			fprintf(stderr, "Can't read %s BR5 model\n", fileName.c_str());
+			fclose(br5);
 			return false;
 		}
 
@@ -124,6 +126,7 @@ namespace loaders
 
 		if (mark[0]!='B' || mark[1]!='R' || mark[2]!='5')
 		{
+			delete [] tmp;
 			// file is not a valid br5 model
 			fclose(br5);
 			return false;
@@ -137,23 +140,23 @@ namespace loaders
 		vertexCount = *(unsigned int*)data;
 		data+=4;
 
-		textureCoordinates = new float[vertexCount*2];
+		m_textureCoordinates = new float[vertexCount*2];
 
 		// read texture coordinates
-		memcpy(textureCoordinates,data,sizeof(float)*vertexCount*2);
+		memcpy(m_textureCoordinates,data,sizeof(float)*vertexCount*2);
 		data+=sizeof(float)*vertexCount*2;
 
 		// read number of frames
 		framesCount = *(unsigned int*)data;
 		data+=4;
 
-		if (framesCount==1)
+		if (framesCount<=1)
 		{
 			// non animated version
 
 			// read vertices
-			vertexCoordinates = new float[vertexCount*3];
-			memcpy(vertexCoordinates,data,sizeof(float)*vertexCount*3);
+			m_vertexCoordinates = new float[vertexCount*3];
+			memcpy(m_vertexCoordinates,data,sizeof(float)*vertexCount*3);
 			data+=sizeof(float)*vertexCount*3;
 		}
 		else
@@ -164,18 +167,18 @@ namespace loaders
 			data+=sizeof(float)*vertexCount*3;*/
 
 			// read other anims
-			vertexCoordinatesAnim = new float*[framesCount];
+			m_vertexCoordinatesAnim = new float*[framesCount];
 
 			for (unsigned int i=0; i<framesCount; i++)
 			{
-				vertexCoordinatesAnim[i] = new float[vertexCount*3];
-				memcpy(vertexCoordinatesAnim[i],data,sizeof(float)*vertexCount*3);
+				m_vertexCoordinatesAnim[i] = new float[vertexCount*3];
+				memcpy(m_vertexCoordinatesAnim[i],data,sizeof(float)*vertexCount*3);
 				data+=sizeof(float)*vertexCount*3;
 			}
 
-			vertexCoordinates = new float[vertexCount*3];
+			m_vertexCoordinates = new float[vertexCount*3];
 
-			memcpy(vertexCoordinates,vertexCoordinatesAnim[0],sizeof(float)*vertexCount*3);
+			memcpy(m_vertexCoordinates,m_vertexCoordinatesAnim[0],sizeof(float)*vertexCount*3);
 		}
 
 		fclose(br5);
@@ -190,7 +193,7 @@ namespace loaders
 		/* ***************** 3. setup the VBO ***************** */
 
 		vbo = new CVBO(framesCount==1?CVBO::BT_STATIC_DRAW:CVBO::BT_STREAM_DRAW,false);
-		vbo->setVertexData(vertexCount,3,sizeof(GLfloat),vertexCoordinates,CVBO::DT_FLOAT);
+		vbo->setVertexData(vertexCount,3,sizeof(GLfloat),m_vertexCoordinates,CVBO::DT_FLOAT);
 		vbo->setEnumMode(CVBO::EM_TRIANGLES);
 
 		setupTexture();
@@ -199,7 +202,7 @@ namespace loaders
 		boundingBox.reset();
 		for (unsigned int v=0; v<vertexCount*3; v+=3)
 		{
-			boundingBox.update(vertexCoordinates+v);
+			boundingBox.update(m_vertexCoordinates+v);
 		}
 		boundingBox.calculateExtents();
 
@@ -234,7 +237,7 @@ namespace loaders
 
 		if (texture!=0)
 		{
-			vbo->setTextureData(CVBO::TU_UNIT0,texture,vertexCount,2,sizeof(GLfloat),textureCoordinates,CVBO::DT_FLOAT);
+			vbo->setTextureData(CVBO::TU_UNIT0,texture,vertexCount,2,sizeof(GLfloat),m_textureCoordinates,CVBO::DT_FLOAT);
 		}
 	}
 
@@ -248,7 +251,7 @@ namespace loaders
 
 	void CBR5Model::setAnimSpeed(float animSpeed)
 	{
-		this->animSpeed = animSpeed;
+		this->m_animSpeed = animSpeed;
 	}
 
 	void CBR5Model::draw(GLfloat deltaTime)
@@ -257,11 +260,11 @@ namespace loaders
 		{
 			if(update)
 			{
-				animNextFrame+=animSpeed*deltaTime;
+				m_animNextFrame+=m_animSpeed*deltaTime;
 
-				if (animNextFrame>=1.0f)
+				if (m_animNextFrame>=1.0f)
 				{
-					animNextFrame=1.0;
+					m_animNextFrame=1.0;
 				}
 
 				if (interpolate)
@@ -280,16 +283,16 @@ namespace loaders
 								nextFrameIndex = startFrame;
 							}
 
-							vertexCoordinates[v+0] = vertexCoordinatesAnim[nextFrameIndex][v+0]*animNextFrame+vertexCoordinatesAnim[currentFrame][v+0]*(1.0f-animNextFrame);
-							vertexCoordinates[v+1] = vertexCoordinatesAnim[nextFrameIndex][v+1]*animNextFrame+vertexCoordinatesAnim[currentFrame][v+1]*(1.0f-animNextFrame);
-							vertexCoordinates[v+2] = vertexCoordinatesAnim[nextFrameIndex][v+2]*animNextFrame+vertexCoordinatesAnim[currentFrame][v+2]*(1.0f-animNextFrame);
+							m_vertexCoordinates[v+0] = m_vertexCoordinatesAnim[nextFrameIndex][v+0]*m_animNextFrame+m_vertexCoordinatesAnim[currentFrame][v+0]*(1.0f-m_animNextFrame);
+							m_vertexCoordinates[v+1] = m_vertexCoordinatesAnim[nextFrameIndex][v+1]*m_animNextFrame+m_vertexCoordinatesAnim[currentFrame][v+1]*(1.0f-m_animNextFrame);
+							m_vertexCoordinates[v+2] = m_vertexCoordinatesAnim[nextFrameIndex][v+2]*m_animNextFrame+m_vertexCoordinatesAnim[currentFrame][v+2]*(1.0f-m_animNextFrame);
 						}
 					}
 				}
 
-				if (animNextFrame>=1.0f)
+				if (m_animNextFrame>=1.0f)
 				{
-					animNextFrame = 0.0f;
+					m_animNextFrame = 0.0f;
 
 					currentFrame++;
 
@@ -300,7 +303,7 @@ namespace loaders
 
 					if (!interpolate)
 					{
-						memcpy(vertexCoordinates,vertexCoordinatesAnim[currentFrame],sizeof(GLfloat)*vertexCount*3);
+						memcpy(m_vertexCoordinates,m_vertexCoordinatesAnim[currentFrame],sizeof(GLfloat)*vertexCount*3);
 					}
 				}		
 			}
@@ -332,7 +335,7 @@ namespace loaders
 
 	void CBR5Model::doAction(int actionID)
 	{
-		animNextFrame = 0;
+		m_animNextFrame = 0;
 
 		pair<int,int> framePair = actions[actionID];
 
@@ -348,10 +351,10 @@ namespace loaders
 		boundingBox.reset();
 		for (unsigned int v=0; v<vertexCount*3; v+=3)
 		{
-			vertexCoordinates[v+0]*=dx;
-			vertexCoordinates[v+1]*=dx;
-			vertexCoordinates[v+2]*=dx;
-			boundingBox.update(vertexCoordinates+v);
+			m_vertexCoordinates[v+0]*=dx;
+			m_vertexCoordinates[v+1]*=dx;
+			m_vertexCoordinates[v+2]*=dx;
+			boundingBox.update(m_vertexCoordinates+v);
 		}
 		boundingBox.calculateExtents();
 
@@ -362,16 +365,16 @@ namespace loaders
 			{
 				for (unsigned int v=0; v<vertexCount*3; v+=3)
 				{
-					vertexCoordinatesAnim[i][v+0]*=dx;
-					vertexCoordinatesAnim[i][v+1]*=dx;
-					vertexCoordinatesAnim[i][v+2]*=dx;
+					m_vertexCoordinatesAnim[i][v+0]*=dx;
+					m_vertexCoordinatesAnim[i][v+1]*=dx;
+					m_vertexCoordinatesAnim[i][v+2]*=dx;
 				}
 			}
 		}
 		else
 		{
 			// we need to reupload the modified vertices
-			vbo->setVertexData(vertexCount,3,sizeof(GLfloat),vertexCoordinates,CVBO::DT_FLOAT);
+			vbo->setVertexData(vertexCount,3,sizeof(GLfloat),m_vertexCoordinates,CVBO::DT_FLOAT);
 		}
 	}
 
@@ -392,11 +395,11 @@ namespace loaders
 
 	float *CBR5Model::getVertexCoordinates()
 	{
-		return vertexCoordinates;
+		return m_vertexCoordinates;
 	}
 
 	float CBR5Model::getAnimSpeed()
 	{
-		return animSpeed;
+		return m_animSpeed;
 	}
 };

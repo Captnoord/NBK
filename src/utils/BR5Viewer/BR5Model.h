@@ -1,7 +1,7 @@
 #ifndef BR5MODEL_H
 #define BR5MODEL_H
 
-#include "VBO.H"
+#include "VBO.h"
 #include <string>
 #include <map>
 #include "boundingBox.h"
@@ -33,10 +33,16 @@ namespace loaders
 		bool loadFromFile(std::string fileName);
 
 		/*
-			Draws the model using VBOs. Using this call
-			all the frames are drawn
+			Loads from .md3, temp until we sort out the classes
 		*/
-		void draw();
+		bool loadFromMD3(std::string fileName);
+
+		/*
+			Draws the model using VBOs. Using this call
+			all the frames are drawn. If the model if animated,
+			then deltaTime comes to good use. 
+		*/
+		void draw(GLfloat deltaTime=1.0f);
 
 		/*
 			By setting this you control the speed of animation.
@@ -80,9 +86,20 @@ namespace loaders
 
 		void scaleToMaxY(float maxY);
 
-		void setTexture(unsigned int texture);
-
 		geometry::sBoundingBox *getBoundingBox();
+
+		/*
+			Texture name manipulation. Setting the name also reloads the texture 
+			and updates the VBO.
+		*/
+		char *getTextureName();
+		void setTextureName(std::string textureName);
+
+		rendering::CVBO *getVBO();
+
+		unsigned int	getVertexCount();
+		float			getAnimSpeed();
+		float			*getVertexCoordinates();
 
 	private:		
 
@@ -98,13 +115,11 @@ namespace loaders
 						endFrame,
 						texture;
 
-		float			*textureCoordinates,
-						*vertexCoordinates,
-						**vertexCoordinatesAnim,
-						*normalCoordinates,
-						**normalCoordinatesAnim,
-						animSpeed,
-						animNextFrame;
+		float			*m_textureCoordinates,
+						*m_vertexCoordinates,
+						**m_vertexCoordinatesAnim,
+						m_animSpeed,
+						m_animNextFrame;
 						//*normalCoordinates; not there yet
 
 		bool			interpolate,
@@ -123,6 +138,8 @@ namespace loaders
 
 		// functions
 		long getFileSize(FILE *file);
+
+		void setupTexture();
 	};
 };
 

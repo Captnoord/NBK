@@ -1,0 +1,12 @@
+This isn't really the project documentation but just a file to spill brain farts.
+
+
+current system is working but isn't efficient.
+
+[rendering]
+Current opengl implementation is based on a old version ( pre opengl 3.0 ).
+This means that most modern gpu's can't show off there goodies. We should
+work on that.
+
+[generic]
+We could use a quadtree to handle AA. 

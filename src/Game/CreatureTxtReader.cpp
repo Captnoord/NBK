@@ -16,11 +16,16 @@ namespace game_utils
 			return;
 		}
 
-		buff = new char[45000];
+		fseek(file, 0, SEEK_END);
+		size_t file_size = ftell(file);
+		fseek(file, 0, SEEK_SET);
+
+		buff = new char[file_size];
 		char *_buff=buff;
-		size_t read=fread(buff,1,45000,file);
+		size_t read=fread(buff,1,file_size,file);
 		if (!read)
 		{
+			delete [] _buff;
 			fprintf(stderr, "Can't read TextFiles/creature.txt\n");
 			return;
 		}

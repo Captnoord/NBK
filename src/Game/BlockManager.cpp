@@ -426,6 +426,7 @@ namespace game_utils
 
 		CBlockManager::~CBlockManager()
 		{
+			shutdown();
 		}
 
 		bool CBlockManager::init()
@@ -3410,7 +3411,13 @@ namespace game_utils
 				globalDeformedMap = NULL;
 			}
 
-			delete roomConstructor;
+			if (roomConstructor != NULL)
+			{
+				delete roomConstructor;
+				roomConstructor = NULL;
+			}
+
+			
 
 			return true;
 		}

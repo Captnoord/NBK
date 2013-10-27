@@ -145,6 +145,7 @@ namespace game_utils
 			}
 
 			CLogger::setEntryStart();
+			
 			//renderManager = new CRenderManager();
 			renderManager = new CRenderManager1();
 			result&=renderManager->init();
@@ -249,7 +250,6 @@ namespace game_utils
 			result&=pickingManager->update();
 
 			result&=renderManager->update();
-			//result&=newRenderer->update();
 			result&=animatedTerrainManager->update();
 			result&=lightingManager->update();
 			result&=roomManager->update();

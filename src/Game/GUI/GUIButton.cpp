@@ -88,7 +88,8 @@ namespace GUI
 
 	GLvoid CBasicGUIButton::set_caption(char *caption)
 	{
-		strcpy(this->caption,caption);
+		if (caption != NULL)
+			strncpy(this->caption,caption, 128);
 	}
 
 	GLvoid CBasicGUIButton::set_caption(const char *fmt, ...)

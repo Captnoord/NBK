@@ -127,7 +127,7 @@ bool MilkshapeModel::loadModelData( const char *filename )
 	if ( inputFile.fail()) {
 //                cout << "Couldn't open the model file." << endl;
 		return false;
-        }
+    }
 
 	char pathTemp[256+1];
 	int pathLength;
@@ -292,7 +292,7 @@ bool MilkshapeModel::loadModelData( const char *filename )
 			pPtr += sizeof( MS3DJoint );
 
 			int j, parentIndex = -1;
-			if ( strlen( pJoint->m_parentName ) > 0 )
+			if ( pJoint->m_parentName[0] != '\0' )
 			{
 				for ( j = 0; j < m_numJoints; j++ )
 				{

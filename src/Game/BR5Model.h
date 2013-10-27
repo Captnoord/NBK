@@ -115,11 +115,11 @@ namespace loaders
 						endFrame,
 						texture;
 
-		float			*textureCoordinates,
-						*vertexCoordinates,
-						**vertexCoordinatesAnim,
-						animSpeed,
-						animNextFrame;
+		float			*m_textureCoordinates,
+						*m_vertexCoordinates,
+						**m_vertexCoordinatesAnim,
+						m_animSpeed,
+						m_animNextFrame;
 						//*normalCoordinates; not there yet
 
 		bool			interpolate,
